@@ -1,9 +1,13 @@
-select max(trunc((f.date_etabli - c.date_nais) / 365.25)) from client c, facture f where c.num = 1;
+drop MATERIALIZED VIEW client_vm;
+drop MATERIALIZED VIEW produit_vm;
+drop MATERIALIZED VIEW lieu_vm;
+drop MATERIALIZED VIEW temps_vm;
+drop MATERIALIZED VIEW vente_vm;
 
--- Vue Client
-create materialized view client_vm 
+-- Vue client_vm
+create materialized view client_vm
 BUILD IMMEDIATE
-as select c.num as id, c.sexe, SUBSTR(REGEXP_SUBSTR(c.adresse, '[^,]+', INSTR(c.adresse, ',', 1, 1) + 1, 3), 1, 2) as lieu,
+as select distinct c.num as id, c.sexe,
 case
   when trunc(((select max(f.date_etabli) from facture f where f.client = c.num) - c.date_nais) / 365.25) < 30 then '<30 ans'
   when trunc(((select max(f.date_etabli) from facture f where f.client = c.num) - c.date_nais) / 365.25) >= 30 and trunc(((select max(f.date_etabli) from facture f where f.client = c.num) - c.date_nais) / 365.25) <= 45 then '30-45 ans' 
@@ -13,12 +17,14 @@ end as tranche_age
 from client c
 join facture f on c.num = f.client;
 
+--create materialized VIEW log on produit with rowid;
+
 -- Vue produit_vm
 create materialized view produit_vm
 BUILD IMMEDIATE
-REFRESH FORCE
+REFRESH FAST
 ON COMMIT
-as select NUM as id, 
+as select NUM as id,
   REGEXP_SUBSTR(designation, '[^.]+', 1) as nom,
   REGEXP_SUBSTR(designation, '[^.]+', INSTR(designation, '.', 1, 1) + 1) as categorie,
   case
@@ -28,31 +34,23 @@ as select NUM as id,
   as sous_categorie
 from produit;
 
--- vue lieu
+-- vue lieu_vm
 create materialized view lieu_vm
-BUILD IMMEDIATE
-REFRESH FORCE
-ON COMMIT
 as select SUBSTR(REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 3), 1, 2) as code_etat,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 3) as pays,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 2) as ville,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 1) as code_postal
 from client;
 
---select (level + to_date('01-01-2015','DD-MM-YYYY') - 1) as datee
---from dual
---connect by level < (to_date('01-01-2016','DD-MM-YYYY') - to_date('01-01-2015','DD-MM-YYYY') + 2);
-
 -- vue Temps
 create materialized view temps_vm
-BUILD IMMEDIATE
 as select date_ as id,
 to_number(to_char(date_, 'DDD')) as jour_annee,
 to_number(to_char(date_, 'MM')) as mois,
 to_number(to_char(date_, 'YYYY')) as annee,
 to_number(to_char(date_, 'Q')) as trimestre,
 to_number(to_char(date_, 'WW')) as semaine,
-to_char(date_, 'DAY') as label
+to_char(date_, 'DAY') as libelle
 from
 (select (level + date_minimum - 1) as date_
 from
@@ -63,10 +61,12 @@ from
 connect by level < (date_maximum - date_minimum + 2));
 
 -- Vue vente
-create materialized view ventes_vm
-BUILD IMMEDIATE
-as select distinct c.id as client, p.id as produit, l.CODE_ETAT as lieu, 
-  f.date_etabli as temps,
+create materialized view vente_vm
+as select distinct 
+  c.id as id_client, 
+  p.id as id_produit, 
+  l.CODE_ETAT as id_lieu, 
+  concat(to_char(t.jour_annee), concat(' ', to_char(t.annee))) as id_temps,
   (lf.qte * (pud.prix * (1 - pud.remise / 100))) as prix_vente,
   lf.qte as quantite,
   pud.prix as prix_unitaire,

@@ -18,7 +18,7 @@ create materialized view produit_vm
 BUILD IMMEDIATE
 REFRESH FORCE
 ON COMMIT
-as select NUM as id, 
+as select NUM as id,
   REGEXP_SUBSTR(designation, '[^.]+', 1) as nom,
   REGEXP_SUBSTR(designation, '[^.]+', INSTR(designation, '.', 1, 1) + 1) as categorie,
   case

@@ -77,7 +77,7 @@ as select distinct
   c.id as id_client, 
   p.id as id_produit, 
   l.CODE_ETAT as id_lieu, 
-  concat(to_char(t.jour_annee), concat(' ', to_char(t.annee))) as id_temps,
+  concat(to_char(t.jour_annee), concat('-', to_char(t.annee))) as id_temps,
   (lf.qte * (pud.prix * (1 - pud.remise / 100))) as prix_vente,
   lf.qte as quantite,
   pud.prix as prix_unitaire,
@@ -105,6 +105,19 @@ execute dbms_mview.refresh('TEMPS_VM');
 set SERVEROUTPUT ON
 
 exec INSERER_DONNEES;
-ROLLBACK;
 
+CREATE DIMENSION products_dim
+  LEVEL product IS(products.prod_id)
+  LEVEL subcategory IS (products.prod_subcategory) [SKIP WHEN NULL]
+  LEVEL category IS (products.prod_category)
+  HIERARCHY prod_rollup (
+  Product CHILD OF subcategory
+  CHILD OF category)
+  ATTRIBUTE product DETERMINES (products.prod_name, products.prod_desc,
+  prod_weight_class, prod_unit_of_measure, prod_pack_size, prod_status,
+  prod_list_price, prod_min_price)
+  ATTRIBUTE subcategory DETERMINES (prod_subcategory, prod_subcategory_desc)
+  ATTRIBUTE category DETERMINES (prod_category, prod_category_desc);
+
+ROLLBACK;
 commit;

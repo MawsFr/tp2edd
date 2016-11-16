@@ -6,7 +6,9 @@ drop MATERIALIZED VIEW vente_vm;
 
 -- Vue client_vm
 create materialized view client_vm
-BUILD IMMEDIATE
+REFRESH FORCE
+ON DEMAND
+Enable query rewrite 
 as select distinct c.num as id, c.sexe,
 case
   when trunc(((select max(f.date_etabli) from facture f where f.client = c.num) - c.date_nais) / 365.25) < 30 then '<30 ans'
@@ -21,9 +23,9 @@ join facture f on c.num = f.client;
 
 -- Vue produit_vm
 create materialized view produit_vm
-BUILD IMMEDIATE
-REFRESH FAST
-ON COMMIT
+REFRESH FORCE
+ON DEMAND
+Enable query rewrite 
 as select NUM as id,
   REGEXP_SUBSTR(designation, '[^.]+', 1) as nom,
   REGEXP_SUBSTR(designation, '[^.]+', INSTR(designation, '.', 1, 1) + 1) as categorie,
@@ -36,6 +38,9 @@ from produit;
 
 -- vue lieu_vm
 create materialized view lieu_vm
+REFRESH FORCE
+ON DEMAND
+Enable query rewrite 
 as select SUBSTR(REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 3), 1, 2) as code_etat,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 3) as pays,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 2) as ville,
@@ -44,6 +49,9 @@ from client;
 
 -- vue Temps
 create materialized view temps_vm
+REFRESH FORCE
+ON DEMAND
+Enable query rewrite 
 as select date_ as id,
 to_number(to_char(date_, 'DDD')) as jour_annee,
 to_number(to_char(date_, 'MM')) as mois,
@@ -62,6 +70,9 @@ connect by level < (date_maximum - date_minimum + 2));
 
 -- Vue vente
 create materialized view vente_vm
+REFRESH FORCE
+ON DEMAND
+Enable query rewrite 
 as select distinct 
   c.id as id_client, 
   p.id as id_produit, 
@@ -77,12 +88,23 @@ join facture f on lf.facture = f.num
 join temps_vm t on f.DATE_ETABLI = t.id
 join client_vm c on f.client = c.id
 join client c2 on f.client = c2.num
-join lieu_vm l on c.lieu = l.code_etat
+join lieu_vm l on SUBSTR(REGEXP_SUBSTR(c2.adresse, '[^,]+', INSTR(c2.adresse, ',', 1, 1) + 1, 3), 1, 2) = l.code_etat
 join produit_vm p on lf.produit = p.id
 join prix_date pud on lf.id_prix = pud.num;
 
 select * from facture;
 select * from ligne_facture;
 select * from prix_date;
+
+execute dbms_mview.refresh('CLIENT_VM');
+execute dbms_mview.refresh('LIEU_VM');
+execute dbms_mview.refresh('PRODUIT_VM');
+execute dbms_mview.refresh('VENTE_VM');
+execute dbms_mview.refresh('TEMPS_VM');
+
+set SERVEROUTPUT ON
+
+exec INSERER_DONNEES;
+ROLLBACK;
 
 commit;

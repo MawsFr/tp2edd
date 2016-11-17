@@ -52,7 +52,7 @@ create materialized view temps_vm
 REFRESH FORCE
 ON DEMAND
 Enable query rewrite 
-as select date_ as id,
+as select concat(to_char(to_number(to_char(date_, 'DDD'))), concat('-', to_char(to_number(to_char(date_, 'YYYY'))))) as id,
 to_number(to_char(date_, 'DDD')) as jour_annee,
 to_number(to_char(date_, 'MM')) as mois,
 to_number(to_char(date_, 'YYYY')) as annee,
@@ -85,7 +85,7 @@ as select distinct
   trunc((f.date_etabli - c2.date_nais) / 365.25) as age
 from ligne_facture lf
 join facture f on lf.facture = f.num
-join temps_vm t on f.DATE_ETABLI = t.id
+join temps_vm t on concat(to_char(to_number(to_char(f.DATE_ETABLI, 'DDD'))), concat('-', to_char(to_number(to_char(f.DATE_ETABLI, 'YYYY'))))) = t.id
 join client_vm c on f.client = c.id
 join client c2 on f.client = c2.num
 join lieu_vm l on SUBSTR(REGEXP_SUBSTR(c2.adresse, '[^,]+', INSTR(c2.adresse, ',', 1, 1) + 1, 3), 1, 2) = l.code_etat
@@ -101,6 +101,14 @@ execute dbms_mview.refresh('LIEU_VM');
 execute dbms_mview.refresh('PRODUIT_VM');
 execute dbms_mview.refresh('VENTE_VM');
 execute dbms_mview.refresh('TEMPS_VM');
+
+create unique index client_vm_index on client_vm (id);
+create bitmap index CLIENT_VM_INDEX_TRANCHE_AGE ON client_vm (tranche_age);
+create bitmap index CLIENT_VM_INDEX_SEXE ON client_vm (sexe);
+--create unique index produit_vm_index on produit_vm (id);
+create index lieu_vm_index on lieu_vm (code_etat, ville, code_postal);
+create unique index temps_vm_index on temps_vm (id);
+create unique index vente_vm_index on vente_vm (id_produit, id_temps, id_lieu, id_client);
 
 set SERVEROUTPUT ON
 

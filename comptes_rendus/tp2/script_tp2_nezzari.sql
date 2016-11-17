@@ -96,6 +96,8 @@ select * from facture;
 select * from ligne_facture;
 select * from prix_date;
 
+exec INSERER_DONNEES;
+
 execute dbms_mview.refresh('CLIENT_VM');
 execute dbms_mview.refresh('LIEU_VM');
 execute dbms_mview.refresh('PRODUIT_VM');
@@ -110,22 +112,59 @@ create index lieu_vm_index on lieu_vm (code_etat, ville, code_postal);
 create unique index temps_vm_index on temps_vm (id);
 create unique index vente_vm_index on vente_vm (id_produit, id_temps, id_lieu, id_client);
 
-set SERVEROUTPUT ON
+create dimension produit_dim
+  level nom is (produit_vm.nom)
+  level categorie is (produit_vm.categorie)
+  level sous_categorie is (produit_vm.sous_categorie)
+  
+  hierarchy prod_rollup (
+    nom 
+    child of sous_categorie 
+    child of categorie
+  )
+  ATTRIBUTE nom DETERMINES (PRODUIT_VM.NOM)
+  attribute sous_categorie DETERMINES (PRODUIT_VM.SOUS_CATEGORIE)
+  ATTRIBUTE categorie DETERMINES (PRODUIT_VM.CATEGORIE);
 
-exec INSERER_DONNEES;
+execute SYS.DBMS_DIMENSION.VALIDATE_DIMENSION('produit_dim', false, true, 'test dim prod');
 
-CREATE DIMENSION products_dim
-  LEVEL product IS(products.prod_id)
-  LEVEL subcategory IS (products.prod_subcategory) [SKIP WHEN NULL]
-  LEVEL category IS (products.prod_category)
-  HIERARCHY prod_rollup (
-  Product CHILD OF subcategory
-  CHILD OF category)
-  ATTRIBUTE product DETERMINES (products.prod_name, products.prod_desc,
-  prod_weight_class, prod_unit_of_measure, prod_pack_size, prod_status,
-  prod_list_price, prod_min_price)
-  ATTRIBUTE subcategory DETERMINES (prod_subcategory, prod_subcategory_desc)
-  ATTRIBUTE category DETERMINES (prod_category, prod_category_desc);
+select * from produit where rowid in (select bad_rowid from dimension_exceptions where statement_id = 'test dim prod');
+
+set SERVEROUTPUT ON;
+
+EXECUTE DBMS_DIMENSION.DESCRIBE_DIMENSION('produit_dim');
+
+select * from produit_dim;
+
+-- Requetes
+-- 1
+select p.id, p.nom, sum(v.prix_vente) as CA
+from vente_vm v
+join produit_vm p on v.id_produit = p.id
+group by p.id, p.nom;
+
+-- 2
+select p.categorie, t.mois, sum(v.prix_vente) as CA
+from vente_vm v
+join produit_vm p on v.id_produit = p.id
+join temps_vm t on v.id_temps = t.id
+group by rollup (p.categorie, t.mois);
+
+-- 3
+select c.tranche_age, sum(v.prix_vente) as CA, rank() over (order by sum(v.prix_vente) DESC) as RANG
+from vente_vm v
+join client_vm c on v.ID_CLIENT = c.ID
+group by c.tranche_age;
+
+-- 4
+select id, nom, CA 
+from (
+  select p.id, p.nom, sum(v.prix_vente) as CA, rank() over (order by sum(v.prix_vente) DESC) as RANG
+  from vente_vm v
+  join produit_vm p on v.id_produit = p.id
+  group by p.id, p.nom
+)
+where rang between 1 and 3;
 
 ROLLBACK;
 commit;

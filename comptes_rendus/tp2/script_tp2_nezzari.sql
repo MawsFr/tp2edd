@@ -110,7 +110,7 @@ create bitmap index CLIENT_VM_INDEX_SEXE ON client_vm (sexe);
 --create unique index produit_vm_index on produit_vm (id);
 create index lieu_vm_index on lieu_vm (code_etat, ville, code_postal);
 create unique index temps_vm_index on temps_vm (id);
-create unique index vente_vm_index on vente_vm (id_produit, id_temps, id_lieu, id_client);
+--create unique index vente_vm_index on vente_vm (id_produit, id_temps, id_lieu, id_client);
 
 create dimension produit_dim
   level nom is (produit_vm.nom)
@@ -125,6 +125,7 @@ create dimension produit_dim
   ATTRIBUTE nom DETERMINES (PRODUIT_VM.NOM)
   attribute sous_categorie DETERMINES (PRODUIT_VM.SOUS_CATEGORIE)
   ATTRIBUTE categorie DETERMINES (PRODUIT_VM.CATEGORIE);
+drop dimension produit_dim;
 
 execute SYS.DBMS_DIMENSION.VALIDATE_DIMENSION('produit_dim', false, true, 'test dim prod');
 
@@ -133,8 +134,6 @@ select * from produit where rowid in (select bad_rowid from dimension_exceptions
 set SERVEROUTPUT ON;
 
 EXECUTE DBMS_DIMENSION.DESCRIBE_DIMENSION('produit_dim');
-
-select * from produit_dim;
 
 -- Requetes
 -- 1

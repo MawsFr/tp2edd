@@ -41,7 +41,7 @@ create materialized view lieu_vm
 REFRESH FORCE
 ON DEMAND
 Enable query rewrite 
-as select SUBSTR(REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 3), 1, 2) as code_etat,
+as select num as id,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 3) as pays,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 2) as ville,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 1) as code_postal
@@ -76,7 +76,7 @@ Enable query rewrite
 as select distinct 
   c.id as id_client, 
   p.id as id_produit, 
-  l.CODE_ETAT as id_lieu, 
+  l.id as id_lieu, 
   concat(to_char(t.jour_annee), concat('-', to_char(t.annee))) as id_temps,
   (lf.qte * (pud.prix * (1 - pud.remise / 100))) as prix_vente,
   lf.qte as quantite,
@@ -88,7 +88,7 @@ join facture f on lf.facture = f.num
 join temps_vm t on concat(to_char(to_number(to_char(f.DATE_ETABLI, 'DDD'))), concat('-', to_char(to_number(to_char(f.DATE_ETABLI, 'YYYY'))))) = t.id
 join client_vm c on f.client = c.id
 join client c2 on f.client = c2.num
-join lieu_vm l on SUBSTR(REGEXP_SUBSTR(c2.adresse, '[^,]+', INSTR(c2.adresse, ',', 1, 1) + 1, 3), 1, 2) = l.code_etat
+join lieu_vm l on c.id = l.id
 join produit_vm p on lf.produit = p.id
 join prix_date pud on lf.id_prix = pud.num;
 
@@ -108,24 +108,69 @@ create unique index client_vm_index on client_vm (id);
 create bitmap index CLIENT_VM_INDEX_TRANCHE_AGE ON client_vm (tranche_age);
 create bitmap index CLIENT_VM_INDEX_SEXE ON client_vm (sexe);
 --create unique index produit_vm_index on produit_vm (id);
-create index lieu_vm_index on lieu_vm (code_etat, ville, code_postal);
+create index lieu_vm_index on lieu_vm (id, ville, code_postal);
 create unique index temps_vm_index on temps_vm (id);
 --create unique index vente_vm_index on vente_vm (id_produit, id_temps, id_lieu, id_client);
 
 create dimension produit_dim
+  level id is (produit_vm.id)
   level nom is (produit_vm.nom)
   level categorie is (produit_vm.categorie)
   level sous_categorie is (produit_vm.sous_categorie)
   
-  hierarchy prod_rollup (
-    nom 
+  hierarchy produit_rollup (
+    id
+    child of nom 
     child of sous_categorie 
     child of categorie
-  )
-  ATTRIBUTE nom DETERMINES (PRODUIT_VM.NOM)
-  attribute sous_categorie DETERMINES (PRODUIT_VM.SOUS_CATEGORIE)
-  ATTRIBUTE categorie DETERMINES (PRODUIT_VM.CATEGORIE);
+);
 drop dimension produit_dim;
+
+create dimension client_dim
+  level id is (client_vm.id)
+  level sexe is (client_vm.sexe)
+  level tranche_age is (client_vm.tranche_age)
+  
+  hierarchy client_rollup (
+    id
+    child of tranche_age
+    child of sexe
+);
+drop dimension client_dim;
+
+create dimension lieu_dim
+  level id is (lieu_vm.id)
+  level pays is (lieu_vm.pays)
+  level ville is (lieu_vm.ville)
+  level code_postal is (lieu_vm.code_postal)
+  
+  hierarchy lieu_rollup (
+    id
+    child of code_postal
+    child of ville
+    child of pays
+);
+drop dimension lieu_dim;
+
+create dimension temps_dim
+  level id is (temps_vm.id)
+  level jour_annee is (temps_vm.jour_annee)
+  level mois is (temps_vm.mois)
+  level annee is (temps_vm.annee)
+  level trimestre is (temps_vm.trimestre)
+  level semaine is (temps_vm.semaine)
+  level libelle is (temps_vm.libelle)
+  
+  hierarchy temps_dim (
+    id
+    child of libelle
+    child of jour_annee
+    child of semaine
+    child of mois
+    child of trimestre
+    child of annee
+);
+drop dimension temps_dim;
 
 execute SYS.DBMS_DIMENSION.VALIDATE_DIMENSION('produit_dim', false, true, 'test dim prod');
 

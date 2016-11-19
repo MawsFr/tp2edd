@@ -113,6 +113,7 @@ create index lieu_vm_index on lieu_vm (id, ville, code_postal);
 create unique index temps_vm_index on temps_vm (id);
 --create unique index vente_vm_index on vente_vm (id_produit, id_temps, id_lieu, id_client);
 
+drop dimension produit_dim;
 create dimension produit_dim
   level id is (produit_vm.id)
   level nom is (produit_vm.nom)
@@ -125,8 +126,8 @@ create dimension produit_dim
     child of sous_categorie 
     child of categorie
 );
-drop dimension produit_dim;
 
+drop dimension client_dim;
 create dimension client_dim
   level id is (client_vm.id)
   level sexe is (client_vm.sexe)
@@ -137,8 +138,8 @@ create dimension client_dim
     child of tranche_age
     child of sexe
 );
-drop dimension client_dim;
 
+drop dimension lieu_dim;
 create dimension lieu_dim
   level id is (lieu_vm.id)
   level pays is (lieu_vm.pays)
@@ -151,8 +152,8 @@ create dimension lieu_dim
     child of ville
     child of pays
 );
-drop dimension lieu_dim;
 
+drop dimension temps_dim;
 create dimension temps_dim
   level id is (temps_vm.id)
   level jour_annee is (temps_vm.jour_annee)
@@ -171,7 +172,6 @@ create dimension temps_dim
     child of trimestre
     child of annee
 );
-drop dimension temps_dim;
 
 execute SYS.DBMS_DIMENSION.VALIDATE_DIMENSION('produit_dim', false, true, 'test dim prod');
 

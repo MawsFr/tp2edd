@@ -53,21 +53,19 @@ create materialized view temps_vm
 REFRESH FORCE
 ON DEMAND
 Enable query rewrite 
-as select concat(to_char(to_number(to_char(date_, 'DDD'))), concat('-', to_char(to_number(to_char(date_, 'YYYY'))))) as id,
-to_number(to_char(date_, 'DDD')) as jour_annee,
-to_number(to_char(date_, 'MM')) as mois,
-to_number(to_char(date_, 'YYYY')) as annee,
-to_number(to_char(date_, 'Q')) as trimestre,
-to_number(to_char(date_, 'WW')) as semaine,
-to_char(date_, 'DAY') as libelle
-from
-(select (level + date_minimum - 1) as date_
-from
-  (select 
-  min(date_etabli) as date_minimum,
-  max(date_etabli) as date_maximum
-  from facture)
-connect by level < (date_maximum - date_minimum + 2));
+as  select concat(to_char(to_number(to_char(date_, 'DDD'))), concat('-', to_char(to_number(to_char(date_, 'YYYY'))))) as id,
+		to_number(to_char(date_, 'DDD')) as jour_annee,
+		to_number(to_char(date_, 'MM')) as mois,
+		to_number(to_char(date_, 'YYYY')) as annee,
+		to_number(to_char(date_, 'Q')) as trimestre,
+		to_number(to_char(date_, 'WW')) as semaine,
+		to_char(date_, 'DAY') as libelle
+	from (select (level + date_minimum - 1) as date_
+		from (select 
+			  min(date_etabli) as date_minimum,
+			  max(date_etabli) as date_maximum
+			  from facture)
+	connect by level < (date_maximum - date_minimum + 2));
 
 -- Vue vente
 create materialized view vente_vm
@@ -163,7 +161,7 @@ create dimension temps_dim
   level semaine is (temps_vm.semaine)
   level libelle is (temps_vm.libelle)
   
-  hierarchy temps_dim (
+  hierarchy temps_rollup (
     id
     child of libelle
     child of jour_annee

@@ -42,7 +42,7 @@ REFRESH FORCE
 ON DEMAND
 Enable query rewrite 
 as select num as id,
-  SUBSTR(REGEXP_SUBSTR(c2.adresse, '[^,]+', INSTR(c2.adresse, ',', 1, 1) + 1, 3), 1, 2) as code_etat,
+  SUBSTR(REGEXP_SUBSTR(c2.adresse, '[^,]+', INSTR(c2.adresse, ',', 1, 1) + 1, 3), 1, 3) as code_etat,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 3) as pays,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 2) as ville,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 1) as code_postal
@@ -102,8 +102,8 @@ exec INSERER_DONNEES;
 execute dbms_mview.refresh('CLIENT_VM');
 execute dbms_mview.refresh('LIEU_VM');
 execute dbms_mview.refresh('PRODUIT_VM');
-execute dbms_mview.refresh('VENTE_VM');
 execute dbms_mview.refresh('TEMPS_VM');
+execute dbms_mview.refresh('VENTE_VM');
 
 create unique index client_vm_index on client_vm (id);
 create bitmap index CLIENT_VM_INDEX_TRANCHE_AGE ON client_vm (tranche_age);

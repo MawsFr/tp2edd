@@ -181,33 +181,53 @@ EXECUTE DBMS_DIMENSION.DESCRIBE_DIMENSION('produit_dim');
 
 -- Requetes
 -- 1
-select p.id, p.nom, sum(v.prix_vente) as CA
-from vente_vm v
-join produit_vm p on v.id_produit = p.id
-group by p.id, p.nom;
+SELECT p.id,
+       p.nom,
+       SUM(v.prix_vente) AS CA
+FROM   vente_vm v
+       join produit_vm p
+         ON v.id_produit = p.id
+GROUP  BY p.id,
+          p.nom; 
 
 -- 2
-select p.categorie, t.mois, sum(v.prix_vente) as CA
-from vente_vm v
-join produit_vm p on v.id_produit = p.id
-join temps_vm t on v.id_temps = t.id
-group by rollup (p.categorie, t.mois);
+SELECT p.categorie,
+       t.mois,
+       SUM(v.prix_vente) AS CA
+FROM   vente_vm v
+       join produit_vm p
+         ON v.id_produit = p.id
+       join temps_vm t
+         ON v.id_temps = t.id
+GROUP  BY rollup ( p.categorie, t.mois ); 
 
 -- 3
-select c.tranche_age, sum(v.prix_vente) as CA, rank() over (order by sum(v.prix_vente) DESC) as RANG
-from vente_vm v
-join client_vm c on v.ID_CLIENT = c.ID
-group by c.tranche_age;
+SELECT c.tranche_age,
+       SUM(v.prix_vente)                    AS CA,
+       Rank()
+         over (
+           ORDER BY SUM(v.prix_vente) DESC) AS RANG
+FROM   vente_vm v
+       join client_vm c
+         ON v.id_client = c.id
+GROUP  BY c.tranche_age; 
 
 -- 4
-select id, nom, CA 
-from (
-  select p.id, p.nom, sum(v.prix_vente) as CA, rank() over (order by sum(v.prix_vente) DESC) as RANG
-  from vente_vm v
-  join produit_vm p on v.id_produit = p.id
-  group by p.id, p.nom
-)
-where rang between 1 and 3;
+SELECT id,
+       nom,
+       ca
+FROM   (SELECT p.id,
+               p.nom,
+               SUM(v.prix_vente)                    AS CA,
+               Rank()
+                 over (
+                   ORDER BY SUM(v.prix_vente) DESC) AS RANG
+        FROM   vente_vm v
+               join produit_vm p
+                 ON v.id_produit = p.id
+        GROUP  BY p.id,
+                  p.nom)
+WHERE  rang BETWEEN 1 AND 3; 
 
 ROLLBACK;
 commit;

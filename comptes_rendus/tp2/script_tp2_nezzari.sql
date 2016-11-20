@@ -42,7 +42,7 @@ REFRESH FORCE
 ON DEMAND
 Enable query rewrite 
 as select num as id,
-  SUBSTR(REGEXP_SUBSTR(c2.adresse, '[^,]+', INSTR(c2.adresse, ',', 1, 1) + 1, 3), 1, 3) as code_etat,
+  SUBSTR(REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 3), 1, 3) as code_etat,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 3) as pays,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 2) as ville,
   REGEXP_SUBSTR(adresse, '[^,]+', INSTR(adresse, ',', 1, 1) + 1, 1) as code_postal
@@ -107,9 +107,7 @@ create unique index client_vm_index on client_vm (id);
 create bitmap index CLIENT_VM_INDEX_TRANCHE_AGE ON client_vm (tranche_age);
 create bitmap index CLIENT_VM_INDEX_SEXE ON client_vm (sexe);
 --create unique index produit_vm_index on produit_vm (id);
-create index lieu_vm_index on lieu_vm (id, ville, code_postal);
 create unique index temps_vm_index on temps_vm (id);
---create unique index vente_vm_index on vente_vm (id_produit, id_temps, id_lieu, id_client);
 
 drop dimension produit_dim;
 create dimension produit_dim
@@ -172,12 +170,21 @@ create dimension temps_dim
 );
 
 execute SYS.DBMS_DIMENSION.VALIDATE_DIMENSION('produit_dim', false, true, 'test dim prod');
+execute SYS.DBMS_DIMENSION.VALIDATE_DIMENSION('client_dim', false, true, 'test dim client');
+execute SYS.DBMS_DIMENSION.VALIDATE_DIMENSION('lieu_dim', false, true, 'test dim lieu');
+execute SYS.DBMS_DIMENSION.VALIDATE_DIMENSION('temps_dim', false, true, 'test dim temps');
 
 select * from produit where rowid in (select bad_rowid from dimension_exceptions where statement_id = 'test dim prod');
+select * from produit where rowid in (select bad_rowid from dimension_exceptions where statement_id = 'test dim client');
+select * from produit where rowid in (select bad_rowid from dimension_exceptions where statement_id = 'test dim lieu');
+select * from produit where rowid in (select bad_rowid from dimension_exceptions where statement_id = 'test dim temps');
 
 set SERVEROUTPUT ON;
 
 EXECUTE DBMS_DIMENSION.DESCRIBE_DIMENSION('produit_dim');
+EXECUTE DBMS_DIMENSION.DESCRIBE_DIMENSION('client_dim');
+EXECUTE DBMS_DIMENSION.DESCRIBE_DIMENSION('lieu_dim');
+EXECUTE DBMS_DIMENSION.DESCRIBE_DIMENSION('temps_dim');
 
 -- Requetes
 -- 1
@@ -188,7 +195,8 @@ FROM   vente_vm v
        join produit_vm p
          ON v.id_produit = p.id
 GROUP  BY p.id,
-          p.nom; 
+          p.nom
+ORDER BY p.id;
 
 -- 2
 SELECT p.categorie,
@@ -215,13 +223,13 @@ GROUP  BY c.tranche_age;
 -- 4
 SELECT id,
        nom,
-       ca
+       QUANTITE_TOTALE
 FROM   (SELECT p.id,
                p.nom,
-               SUM(v.prix_vente)                    AS CA,
+               SUM(v.quantite)                    AS QUANTITE_TOTALE,
                Rank()
                  over (
-                   ORDER BY SUM(v.prix_vente) DESC) AS RANG
+                   ORDER BY SUM(v.quantite) DESC) AS RANG
         FROM   vente_vm v
                join produit_vm p
                  ON v.id_produit = p.id

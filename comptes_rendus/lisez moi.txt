@@ -1,0 +1,5 @@
+Dans ce dossier, vous trouverez les compte rendu des tp 1 et 2.
+Dans le dossier TP1 il y a : Le script sql et le pdf du compte rendu.
+Dans le dossier du TP2 il y a : Votre script sql pour construire le shéma relationnel et insérer les données, les script sql avec mes requêtes, le script sql de la procédure qui permet d'insérer des données dans le SIO pour voir si les vues matérialisées fonctionnent et enfin le pdf du compte rendu.
+
+Bon courage.
